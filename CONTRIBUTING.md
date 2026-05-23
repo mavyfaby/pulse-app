@@ -34,11 +34,11 @@ Thank you for your interest in contributing to Pulse. This project is built as o
 
 ## Before you start
 
-1. Read the [Research Paper](docs/research-paper.md) to understand the problem and approach
+1. Read the [Research Paper](docs/RESEARCH.md) to understand the problem and approach
 2. Read the relevant specification for your area:
-   - [UX Specification](docs/ux-specification.md)
-   - [Technical Specification](docs/technical-specification.md)
-   - [Backend Specification](docs/backend-specification.md)
+   - [UX Specification](docs/UX-SPECIFICATION.md)
+   - [Technical Specification](docs/TECHNICAL-SPECIFICATION.md)
+   - [Backend Specification](docs/BACKEND-SPECIFICATION.md)
 3. Check open Issues to see what's being worked on
 4. Open an Issue before starting significant work — to avoid duplicating effort and to discuss the approach
 
