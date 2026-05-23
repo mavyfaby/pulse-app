@@ -10,7 +10,17 @@ Built for the Philippines, designed for anywhere with connectivity gaps.
 
 ---
 
-## What is Pulse?
+## Links
+
+| | |
+|---|---|
+| 🌐 Website | [pulse.mavyfaby.com](https://pulse.mavyfaby.com) |
+| 🖥️ Operations Center | [pulse.mavyfaby.com/ops](https://pulse.mavyfaby.com/ops) |
+| 👤 Author | [mavyfaby.com](https://mavyfaby.com) |
+
+---
+
+
 
 Pulse is a mobile emergency response app that lets you summon nearby help with a single button hold. When you activate it, your location is automatically transmitted to nearby volunteer responders — even if your prepaid SIM has no remaining balance, no active data subscription, or degraded signal.
 
@@ -68,10 +78,10 @@ This behavior has been observed and tested on Smart Communications (Philippines)
 
 | Document | Description |
 |---|---|
-| [Research Paper](docs/RESEARCH.md) | Problem statement, solution overview, technical approach, system flow |
-| [UX Specification](docs/UX-SPECIFICATION.md) | User interaction design, screens, flows |
-| [Technical Specification](docs/TECHNICAL-SPECIFICATION.md) | Protocol design, transmission constraints, carrier behavior |
-| [Backend Specification](docs/BACKEND-SPECIFICATION.md) | Rust server architecture, data model, API, deployment phases |
+| [Research Paper](docs/research-paper.md) | Problem statement, solution overview, technical approach, system flow |
+| [UX Specification](docs/ux-specification.md) | User interaction design, screens, flows |
+| [Technical Specification](docs/technical-specification.md) | Protocol design, transmission constraints, carrier behavior |
+| [Backend Specification](docs/backend-specification.md) | Rust server architecture, data model, API, deployment phases |
 
 ---
 
@@ -119,6 +129,16 @@ You are free to use, modify, and deploy this software. If you distribute a modif
 ## Acknowledgments
 
 Inspired by international peer-response systems including PulsePoint (US), GoodSAM (UK), Hatzalah, and myResponder (Singapore), and by the genuine need for better emergency response infrastructure in the Philippines.
+
+---
+
+## Sponsor
+
+Pulse is free, open-source, and built for community benefit. If you'd like to support the development and infrastructure costs, consider sponsoring:
+
+[![Sponsor mavyfaby](https://img.shields.io/badge/Sponsor-mavyfaby-ea4aaa?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/mavyfaby)
+
+Every contribution helps keep Pulse running and improving.
 
 ---
 

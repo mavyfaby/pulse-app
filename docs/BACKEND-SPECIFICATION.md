@@ -4,11 +4,27 @@
 
 Solo developer, Rust, single VM in Phase 2. Complexity added only when forced.
 
+## Domains
+
+| URL | Purpose |
+|---|---|
+| `mavyfaby.com` | Personal portfolio, links to Pulse |
+| `pulse.mavyfaby.com` | Public landing page (pulse-web) |
+| `pulse.mavyfaby.com/ops` | Emergency operations center — dispatch, alerts, responders (behind auth) |
+| `api.pulse.mavyfaby.com` | HTTPS API (this service) |
+| `api.pulse.mavyfaby.com/v1/infrastructure/server-ips` | Signed server IP list for mobile clients |
+
+The raw TCP alert server is addressed by IP only — never by domain. See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) for details.
+
+---
+
 ## Phases
 
 ### Phase 1 — Empirical foundation (1-2 weeks)
 
-Deploy minimal Rust TCP echo server with static IP. Build mobile test harness. Verify on Smart, Globe, DITO across SIM states. Record compatibility matrix.
+Deploy minimal Rust TCP echo server on AWS EC2 with an **Elastic IP** (not a raw EC2 public IP — Elastic IP is stable and free). Build mobile test harness. Verify on Smart, Globe, DITO across SIM states. Record compatibility matrix.
+
+Also test: does Cloudflare Spectrum work on no-subscription SIMs? Connect through a Spectrum-proxied IP instead of direct EC2 IP and observe carrier behavior.
 
 Deliverable: signed-off carrier matrix.
 
@@ -43,7 +59,14 @@ Acceptance:
 - Split TCP and HTTPS into separate binaries
 - Load balancer + multiple instances
 - Redis GEO index for responder matching
-- Multiple static IPs with failover
+- **Multiple static IPs with client-side failover** — high availability; if one server is unreachable, the client automatically tries the next IP
+- **IP list distribution** via `GET /v1/infrastructure/server-ips` — clients fetch and cache the current server IP list when normal data is available, so IP changes don't require app updates
+- **IP security mitigations:**
+  - Connection rate limiting per source IP at the firewall (legitimate users open ~20 connections/hour; anything beyond that is rate-limited or dropped)
+  - IPs are not advertised publicly — distributed only to registered devices via the API
+  - Ed25519 signature requirement on every message blocks unsigned alert flooding
+  - Cloud provider DDoS protection at the network layer
+  - Anycast routing considered if DDoS becomes a real threat (Phase 6)
 
 ### Phase 5 — Optional account features (demand-driven)
 
@@ -52,8 +75,15 @@ Only if users ask for it:
 - ID verification
 - Medical info / emergency contacts
 - Organizational accounts
-- Command center dashboards
 - Emergency type selection
+- **Operations center** (`pulse.mavyfaby.com/ops`) — for authorized LGU and command center operators:
+  - Live map of active alerts and available responders
+  - Dispatch official resources (ambulance, police, fire) to an alert
+  - Contact alerter directly
+  - Escalate, override, or close an alert
+  - Broadcast to all responders in an area
+  - Manage and verify responder accounts
+  - Alert history, response time statistics
 
 Don't build speculatively.
 
@@ -144,15 +174,18 @@ sqlx migrate run --database-url $DATABASE_URL
 
 ## HTTPS API (Phase 2)
 
+Base URL: `https://api.pulse.mavyfaby.com/v1`
+
 ```
 POST   /v1/devices/register         register Ed25519 public key
 GET    /v1/devices/profile          fetch profile
 PATCH  /v1/devices/profile          update profile (optional fields)
 PUT    /v1/devices/responder-mode   toggle responder availability + radius
-GET    /v1/infrastructure/server-ips signed JSON IP list
 GET    /v1/infrastructure/status    public status
 WSS    /v1/responder/stream         responder dispatch push
 ```
+
+Note: `GET /v1/infrastructure/server-ips` is added in Phase 4 when multiple server IPs exist and client-side failover is needed.
 
 Auth: each request signed with device's Ed25519 key. `X-Pulse-Signature` and `X-Pulse-Device-ID` headers. No JWT.
 
@@ -299,7 +332,10 @@ pulse_active_websocket_connections
 SIGTERM → drain (30s timeout) → exit. systemd manages.
 
 ### Deployment
-Single VM, systemd-supervised, restart on crash. Managed PostgreSQL + Redis.
+
+**Phase 1-3:** Single EC2 instance, systemd-supervised, restart on crash. Managed PostgreSQL + Redis. Public-facing IP via AWS Elastic IP — free, stable, hides the real instance IP. Keep the Elastic IP out of public-facing materials.
+
+**Phase 4+:** Multiple EC2 instances behind AWS Global Accelerator. Two permanent anycast IPs that never change regardless of underlying infrastructure. Built-in health checks and automatic failover. Real instance IPs remain private. See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) for full IP strategy details including Cloudflare Spectrum and Wireguard alternatives.
 
 ### Backup
 - PostgreSQL: WAL archiving + daily snapshots, 30-day retention

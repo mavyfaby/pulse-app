@@ -115,7 +115,9 @@ The server-side implementation is written in Rust using the Tokio asynchronous r
 
 Storage is provided by PostgreSQL for durable state and Redis for ephemeral state and pub/sub messaging. Voice recordings are stored in S3-compatible object storage.
 
-Static IP addresses are required for the alert servers, with multiple addresses provisioned for redundancy. Updated IP lists are distributed to clients via the HTTPS API when devices have working connectivity.
+Static IP addresses are required for the alert servers, with multiple addresses provisioned for redundancy. Updated IP lists are distributed to clients via `https://api.pulse.mavyfaby.com/v1/infrastructure/server-ips` when devices have working connectivity.
+
+To protect the real server infrastructure, public-facing IPs are never the raw EC2 instance IPs. In early phases, AWS Elastic IPs provide stable public addresses that hide the underlying instance. In later phases, AWS Global Accelerator provides two permanent anycast IPs with built-in failover and DDoS protection. Cloudflare Spectrum is an alternative under evaluation — it proxies raw TCP through Cloudflare's network, though its behavior on no-subscription SIMs requires empirical validation.
 
 ### 3.4 Identity and authentication
 
@@ -214,7 +216,7 @@ Phase 3 (3-4 weeks): Voice transmission with chunked Opus encoding. Live locatio
 
 Phase 4 (6-8 weeks): Service split for failure isolation. Geographic indexing for scalable responder matching. Multiple server IPs with client-side failover.
 
-Phase 5 (demand-driven): Optional account features, organizational accounts, command center dashboards, official emergency service integration. Built only as real partnerships emerge.
+Phase 5 (demand-driven): Optional account features, organizational accounts, operations center with dispatch and situational awareness, official emergency service integration. Built only as real partnerships emerge.
 
 Phase 6 (ongoing): Advanced capabilities including peer-to-peer mesh networking, server-side voice transcription, multi-region deployment.
 
@@ -281,10 +283,10 @@ The next concrete step is empirical validation of carrier transmission behavior 
 ## Appendices
 
 ### A. Technical specifications
-Detailed protocol design, message formats, and server architecture are documented in the accompanying Backend Specification and Technical Specification documents.
+Detailed protocol design, message formats, and server architecture are documented in the accompanying [BACKEND-SPECIFICATION.md](BACKEND-SPECIFICATION.md) and [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) documents.
 
 ### B. UX specifications
-Complete user experience design, interaction flows, and screen specifications are documented in the accompanying UX Specification document.
+Complete user experience design, interaction flows, and screen specifications are documented in the accompanying [UX-SPECIFICATION.md](UX-SPECIFICATION.md) document.
 
 ### C. Compatibility matrix template
 The carrier compatibility matrix to be produced during Phase 1 testing will document, for each combination of carrier and SIM state, the following metrics: TCP connection success rate, maximum reliable payload size, maximum sends per connection, latency percentiles, and acknowledgment reliability.

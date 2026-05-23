@@ -21,7 +21,21 @@ Ed25519 keypair generation and storage via Android Keystore System. Keys never l
 
 Location via `FusedLocationProviderClient`. Significant location change API for background updates without continuous GPS drain.
 
-## Wire protocol
+## Domains
+
+| URL | Purpose |
+|---|---|
+| `mavyfaby.com` | Personal portfolio, links to Pulse |
+| `pulse.mavyfaby.com` | Public landing page (pulse-web) |
+| `pulse.mavyfaby.com/ops` | Emergency operations center — dispatch, alerts, responders (behind auth) |
+| `api.pulse.mavyfaby.com` | HTTPS API (pulse-server) |
+| `api.pulse.mavyfaby.com/v1/infrastructure/server-ips` | Signed server IP list for mobile clients |
+
+Note: The raw TCP alert path connects directly to server IPs — never to a domain. Domains are only used for the HTTPS API, operations center, and public web.
+
+---
+
+
 
 Custom binary over raw TCP. HTTP avoided for alert path (DNS gating, handshake overhead).
 
@@ -64,7 +78,7 @@ Each device generates an Ed25519 keypair on first install. Public key registered
 Consequences:
 - Server addressing by IP, not domain, for alert path
 - App ships with hardcoded server IP list
-- Updated IP lists fetched via HTTPS when data is available
+- Updated IP lists fetched via HTTPS when data is available from `https://api.pulse.mavyfaby.com/v1/infrastructure/server-ips`
 - All published IPs must be static
 - Minimum 3 IPs at launch, 90-day deprecation window
 
@@ -138,7 +152,84 @@ Bluetooth LE / WiFi Direct relay through nearby Pulse users. Deferred until user
 - End-to-end signatures from day one
 - Small core payload (~200 bytes) for relay-friendliness
 
-## Background Connection Probe
+## Server IP Strategy
+
+The mobile client connects to the alert server by IP address directly — never by domain. This means the public-facing IP must be stable, secure, and not expose the real underlying server infrastructure.
+
+### Phase 1-3 — AWS Elastic IP
+
+A single Elastic IP attached directly to the EC2 instance. Free within AWS. Simple to set up.
+
+- Real EC2 instance IP is not exposed — Elastic IP is the public face
+- If the EC2 instance is replaced, re-attach the Elastic IP to the new instance — no app update needed
+- Keep the Elastic IP out of public-facing materials (website, docs, DNS)
+
+Limitation: if the Elastic IP itself is DDoSed, the server is unreachable. Acceptable at small scale where targeted attacks are unlikely.
+
+### Phase 4+ — AWS Global Accelerator
+
+Two static anycast IPs that route to your EC2 instances. Your real instance IPs remain private.
+
+- IPs never change regardless of underlying infrastructure changes
+- Built-in health checks and automatic failover between instances
+- Routes clients to the nearest AWS edge location (lower latency)
+- Hides real EC2 IPs completely
+- Reduces reliance on the IP list update mechanism since accelerator IPs are permanent
+- Cost: ~$18/month base + data transfer
+
+This is the recommended production setup for Pulse once real users depend on it.
+
+### Alternative: Cloudflare Spectrum
+
+Cloudflare Spectrum proxies raw TCP through Cloudflare's network. Clients connect to Cloudflare's anycast IPs; Cloudflare forwards to your server.
+
+- Real server IP completely hidden
+- Built-in DDoS protection
+- Paid feature (not on Cloudflare free plan)
+
+**Requires testing:** does Cloudflare Spectrum work on no-subscription SIMs the same way direct IP connections do? Since the client still connects to an IP (Cloudflare's), it should behave identically from the carrier's perspective. Add to Phase 1 carrier testing checklist.
+
+### Alternative: Wireguard VPN tunnel
+
+A cheap public VPS (~$5/month) accepts TCP connections and tunnels them to the real server via Wireguard. The real server has no public IP.
+
+- Completely hides the real server
+- If the VPS is DDoSed or compromised, spin up a new one and update the IP list
+- Adds one extra network hop (small latency cost)
+
+Viable for teams that want maximum server IP privacy at low cost.
+
+---
+
+
+
+### Why multiple static IPs
+
+Multiple server IPs provide high availability — if one server is unreachable (hardware failure, network issue, DDoS), the client automatically tries the next IP in its list. No single point of failure.
+
+### The exploit concern
+
+Static IPs must be known to clients, which means they can be discovered by attackers. Realistic threats:
+
+- **DDoS** — flood the IP with traffic to make it unreachable
+- **Alert flooding** — send thousands of fake ALERT messages to exhaust server resources
+- **Port scanning** — probe for vulnerabilities on open ports
+
+### Mitigations (Phase 4+)
+
+- **Ed25519 signatures required on every message** — unsigned or malformed messages are rejected immediately. Attackers cannot send valid alerts without a registered device key. This is the strongest application-layer protection.
+- **Connection rate limiting per source IP** — firewall rules drop connections from IPs exceeding a threshold (e.g., >100 connections/hour). Legitimate users open ~20 connections/hour.
+- **IPs not advertised publicly** — distributed only to registered devices via `GET /v1/infrastructure/server-ips`. Not in DNS, not on the website, not in docs.
+- **Cloud provider DDoS protection** — network-layer mitigation from the hosting provider (AWS Shield, GCP Cloud Armor, etc.).
+- **Anycast routing** (Phase 6, if needed) — same IP routes to multiple physical servers. DDoS traffic is distributed and absorbed rather than hitting one target.
+
+### Phase 1-3 reality
+
+At small scale, targeted attacks are unlikely. A buggy client that reconnects infinitely is the realistic threat, handled by basic connection rate limiting. Design for serious threats in Phase 4 when real traffic data informs the decisions.
+
+---
+
+
 
 The mobile client periodically probes the server even when the app is not in use. This confirms the no-subscription TCP path is working before an emergency occurs — not just that the device has internet.
 
