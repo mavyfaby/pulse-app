@@ -312,7 +312,16 @@ HEARTBEAT messages are rate-limited separately from alerts:
 
 
 ### Config
-Env vars via `figment`, typed structs, validated at startup. Refuse to start on invalid config.
+Env vars via `dotenvy`, typed structs, validated at startup. Refuse to start on invalid config.
+
+The path to the env file is provided via the `PULSE_ENV_FILE` environment variable. Required variables:
+
+| Variable | Type | Description |
+|---|---|---|
+| `PULSE_TCP_HOST` | `String` | Host address the TCP server binds to |
+| `PULSE_TCP_PORT` | `u16` | Port the TCP server listens on |
+| `PULSE_TCP_MAX_CONNECTIONS` | `usize` | Maximum number of concurrent TCP connections |
+| `PULSE_TCP_READ_TIMEOUT_SECONDS` | `u64` | Idle read timeout per connection, in seconds |
 
 ### Logging
 Structured JSON via `tracing`. Service, request/alert ID, device ID in every line. Sensitive fields never logged.
@@ -382,7 +391,7 @@ Full privacy spec planned separately.
 
 | Component | Technology |
 |---|---|
-| Backend | Rust (stable, edition 2021) |
+| Backend | Rust (stable, edition 2024) |
 | Mobile client | Kotlin (Android, native) |
 | Async runtime | Tokio |
 | Database | PostgreSQL 15+ |
@@ -400,11 +409,11 @@ Full privacy spec planned separately.
 | `sqlx` | PostgreSQL |
 | `fred` | Redis |
 | `serde` + `ciborium` | CBOR serialization |
-| `ed25519-dalek` | Signatures |
+| `ed25519-dalek` | Ed25519 signatures |
 | `rustls` + `tokio-rustls` | TLS |
 | `tracing` | Logging |
 | `thiserror` + `anyhow` | Errors |
-| `figment` | Config |
+| `dotenvy` | Config |
 
 ### Kotlin (Android) key APIs
 

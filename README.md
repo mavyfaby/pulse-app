@@ -78,10 +78,10 @@ This behavior has been observed and tested on Smart Communications (Philippines)
 
 | Document | Description |
 |---|---|
-| [Research Paper](docs/research-paper.md) | Problem statement, solution overview, technical approach, system flow |
-| [UX Specification](docs/ux-specification.md) | User interaction design, screens, flows |
-| [Technical Specification](docs/technical-specification.md) | Protocol design, transmission constraints, carrier behavior |
-| [Backend Specification](docs/backend-specification.md) | Rust server architecture, data model, API, deployment phases |
+| [Research Paper](docs/RESEARCH.md) | Problem statement, solution overview, technical approach, system flow |
+| [UX Specification](docs/UX-SPECIFICATION.md) | User interaction design, screens, flows |
+| [Technical Specification](docs/TECHNICAL-SPECIFICATION.md) | Protocol design, transmission constraints, carrier behavior |
+| [Backend Specification](docs/BACKEND-SPECIFICATION.md) | Rust server architecture, data model, API, deployment phases |
 
 ---
 

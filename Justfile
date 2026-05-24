@@ -1,5 +1,8 @@
+server-fmt:
+  cargo fmt --manifest-path pulse-server/Cargo.toml
+
 server-run:
-  cd pulse-server && cargo run
+  cargo run --manifest-path pulse-server/Cargo.toml
 
 server-test:
-  cd pulse-server && cargo test
+  cargo test --manifest-path pulse-server/Cargo.toml

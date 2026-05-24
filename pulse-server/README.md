@@ -21,12 +21,16 @@ The env file must define the following variables:
 |---|---|
 | `PULSE_TCP_HOST` | Host address the TCP server binds to |
 | `PULSE_TCP_PORT` | Port the TCP server listens on (0–65535) |
+| `PULSE_TCP_MAX_CONNECTIONS` | Maximum number of active TCP connections |
+| `PULSE_TCP_READ_TIMEOUT_SECONDS` | Idle read timeout per TCP connection, in seconds |
 
 Example `.env`:
 
 ```env
 PULSE_TCP_HOST=0.0.0.0
 PULSE_TCP_PORT=9000
+PULSE_TCP_MAX_CONNECTIONS=10000
+PULSE_TCP_READ_TIMEOUT_SECONDS=30
 ```
 
 ## Running

@@ -5,6 +5,7 @@
 use std::{collections::HashMap, env, path::Path, str::FromStr};
 
 use thiserror::Error;
+use tracing::info;
 
 #[derive(Debug)]
 pub struct AppConfig {
@@ -15,6 +16,8 @@ pub struct AppConfig {
 pub struct TcpConfig {
     pub host: String,
     pub port: u16,
+    pub max_connections: usize,
+    pub read_timeout_seconds: u64,
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -27,9 +30,6 @@ pub enum ConfigError {
 
     #[error("Failed to parse environment variable {0}")]
     EnvVarParseError(String),
-
-    #[error("Failed to parse configuration file")]
-    ConfigParseError,
 }
 
 /// Loads `AppConfig` from the env file referenced by `PULSE_ENV_FILE`.
@@ -55,11 +55,16 @@ pub fn load_from(path: &Path) -> Result<AppConfig, ConfigError> {
         .collect::<Result<_, _>>()
         .map_err(|e| ConfigError::GeneralError(e.to_string()))?;
 
+    // Log the .env file path
+    info!("Loaded env file from {}", path.display());
+
     // Construct the config and return it
     Ok(AppConfig {
         tcp: TcpConfig {
             host: required(&vars, "PULSE_TCP_HOST")?,
             port: required::<u16>(&vars, "PULSE_TCP_PORT")?,
+            max_connections: required::<usize>(&vars, "PULSE_TCP_MAX_CONNECTIONS")?,
+            read_timeout_seconds: required::<u64>(&vars, "PULSE_TCP_READ_TIMEOUT_SECONDS")?,
         },
     })
 }
@@ -81,11 +86,17 @@ mod tests {
     fn loads_config_from_env_file() {
         let dir = tempdir().unwrap();
         let env_path = dir.path().join("test.env");
-        fs::write(&env_path, "PULSE_TCP_HOST=127.0.0.1\nPULSE_TCP_PORT=8080\n").unwrap();
+        fs::write(
+            &env_path,
+            "PULSE_TCP_HOST=127.0.0.1\nPULSE_TCP_PORT=8080\nPULSE_TCP_MAX_CONNECTIONS=1024\nPULSE_TCP_READ_TIMEOUT_SECONDS=30\n",
+        )
+        .unwrap();
 
         let cfg = load_from(&env_path).expect("should load");
         assert_eq!(cfg.tcp.host, "127.0.0.1");
         assert_eq!(cfg.tcp.port, 8080);
+        assert_eq!(cfg.tcp.max_connections, 1024);
+        assert_eq!(cfg.tcp.read_timeout_seconds, 30);
     }
 
     #[test]
@@ -117,11 +128,18 @@ mod tests {
     fn errors_when_port_unparseable() {
         let dir = tempdir().unwrap();
         let env_path = dir.path().join("bad_port.env");
-        fs::write(&env_path, "PULSE_TCP_HOST=127.0.0.1\nPULSE_TCP_PORT=not_a_number\n").unwrap();
+        fs::write(
+            &env_path,
+            "PULSE_TCP_HOST=127.0.0.1\nPULSE_TCP_PORT=not_a_number\nPULSE_TCP_MAX_CONNECTIONS=1024\nPULSE_TCP_READ_TIMEOUT_SECONDS=30\n",
+        )
+        .unwrap();
 
         match load_from(&env_path) {
             Err(ConfigError::EnvVarParseError(name)) => assert_eq!(name, "PULSE_TCP_PORT"),
-            other => panic!("expected EnvVarParseError for PULSE_TCP_PORT, got {:?}", other),
+            other => panic!(
+                "expected EnvVarParseError for PULSE_TCP_PORT, got {:?}",
+                other
+            ),
         }
     }
 
@@ -131,11 +149,18 @@ mod tests {
         let env_path = dir.path().join("big_port.env");
 
         // 70000 overflows u16
-        fs::write(&env_path, "PULSE_TCP_HOST=127.0.0.1\nPULSE_TCP_PORT=70000\n").unwrap();
+        fs::write(
+            &env_path,
+            "PULSE_TCP_HOST=127.0.0.1\nPULSE_TCP_PORT=70000\nPULSE_TCP_MAX_CONNECTIONS=1024\nPULSE_TCP_READ_TIMEOUT_SECONDS=30\n",
+        )
+        .unwrap();
 
         match load_from(&env_path) {
             Err(ConfigError::EnvVarParseError(name)) => assert_eq!(name, "PULSE_TCP_PORT"),
-            other => panic!("expected EnvVarParseError for PULSE_TCP_PORT, got {:?}", other),
+            other => panic!(
+                "expected EnvVarParseError for PULSE_TCP_PORT, got {:?}",
+                other
+            ),
         }
     }
 }
