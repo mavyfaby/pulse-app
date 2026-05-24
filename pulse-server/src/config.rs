@@ -63,7 +63,10 @@ pub fn load_from(path: Option<&Path>) -> Result<AppConfig, ConfigError> {
             Some(map)
         }
         // Read directly from the process environment
-        None => None,
+        None => {
+            info!("Loaded env file from process environment");
+            None
+        }
     };
 
     // Construct the config and return it

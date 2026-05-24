@@ -36,7 +36,26 @@ PULSE_TCP_READ_TIMEOUT_SECONDS=30
 ## Running
 
 ```bash
-just server-run
+# Development (unoptimized)
+PULSE_ENV_FILE=.env just server-run
+
+# Release build
+just server-build
+PULSE_ENV_FILE=.env just server-run-release
+```
+
+Log verbosity is controlled via `RUST_LOG`:
+
+```bash
+RUST_LOG=debug PULSE_ENV_FILE=.env just server-run   # all logs
+RUST_LOG=info  PULSE_ENV_FILE=.env just server-run   # default
+RUST_LOG=error PULSE_ENV_FILE=.env just server-run   # errors only
+```
+
+## Formatting
+
+```bash
+just server-fmt
 ```
 
 ## Testing

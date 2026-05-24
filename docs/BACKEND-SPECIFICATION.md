@@ -41,6 +41,12 @@ Scope:
 - Naive responder matching (linear scan)
 - WebSocket push to responders
 
+TCP server behavior:
+- Binds to configurable host/port via `PULSE_TCP_HOST` / `PULSE_TCP_PORT`
+- Connection limit enforced via a Tokio `Semaphore` (`PULSE_TCP_MAX_CONNECTIONS`) — excess connections are rejected immediately
+- Each connection has a configurable idle read timeout (`PULSE_TCP_READ_TIMEOUT_SECONDS`) — silent connections are dropped after the timeout
+- Each accepted connection is handled in its own `tokio::spawn` task
+
 Acceptance:
 - End-to-end alert works on no-subscription Smart SIM
 - ACK within 1s on healthy network
@@ -113,7 +119,11 @@ pulse-backend/
 │   ├── config.rs
 │   ├── state.rs
 │   ├── protocol/   (codec, messages, signature)
-│   ├── tcp/        (server, handler)
+│   ├── tcp/
+│   │   ├── mod.rs
+│   │   ├── server.rs   (listener, connection loop, semaphore, read timeout)
+│   │   ├── handler.rs  (per-connection packet handling)
+│   │   └── error.rs    (TcpServerError)
 │   ├── http/       (server, routes)
 │   ├── domain/     (device, alert, location)
 │   ├── db/         (sqlx queries)
