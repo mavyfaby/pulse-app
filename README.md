@@ -102,6 +102,16 @@ The goal is for Pulse to become part of how Filipino communities respond to emer
 
 ---
 
+## Testing
+
+The backend test suite is pure — no environment variable mutation, no serial execution required, so tests run in parallel at full speed.
+
+```bash
+just server-test
+```
+
+---
+
 ## Contributing
 
 Pulse is in early stages and welcomes contributions in all forms:
