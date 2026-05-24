@@ -69,6 +69,7 @@ pub fn load_from(path: &Path) -> Result<AppConfig, ConfigError> {
     })
 }
 
+/// Get a required env var, returning an error if not present or parseable.
 fn required<T: FromStr>(vars: &HashMap<String, String>, name: &str) -> Result<T, ConfigError> {
     vars.get(name)
         .ok_or_else(|| ConfigError::EnvVarNotSet(name.to_string()))?
