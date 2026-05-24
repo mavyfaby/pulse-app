@@ -35,28 +35,36 @@ pub enum ConfigError {
 /// Loads `AppConfig` from the env file referenced by `PULSE_ENV_FILE`.
 pub fn load() -> Result<AppConfig, ConfigError> {
     // Get the path to the env file
-    let env_file = env::var("PULSE_ENV_FILE")
-        .map_err(|_| ConfigError::EnvVarNotSet("PULSE_ENV_FILE".to_string()))?;
+    match env::var("PULSE_ENV_FILE") {
+        // If the env file is set, load from it
+        Ok(file) => {
+            let env_file_path = env::current_dir()
+                .map_err(|err| ConfigError::GeneralError(err.to_string()))?
+                .join(file);
 
-    // Construct the path
-    let env_file_path = env::current_dir()
-        .map_err(|err| ConfigError::GeneralError(err.to_string()))?
-        .join(env_file);
-
-    // Load config from the path
-    load_from(&env_file_path)
+            load_from(Some(&env_file_path))
+        }
+        // If the env file is not set, load from None (directly from process environment)
+        Err(_) => load_from(None),
+    }
 }
 
-/// Loads `AppConfig` from a given env file path without touching process environment.
-pub fn load_from(path: &Path) -> Result<AppConfig, ConfigError> {
-    // Load the env file from the provided path
-    let vars: HashMap<String, String> = dotenvy::from_path_iter(path)
-        .map_err(|e| ConfigError::GeneralError(e.to_string()))?
-        .collect::<Result<_, _>>()
-        .map_err(|e| ConfigError::GeneralError(e.to_string()))?;
+/// Loads `AppConfig` from a given env file path, or directly from the process environment if `None`.
+pub fn load_from(path: Option<&Path>) -> Result<AppConfig, ConfigError> {
+    // Build a vars map — either from the file or from the process environment
+    let vars: Option<HashMap<String, String>> = match path {
+        Some(path) => {
+            let map = dotenvy::from_path_iter(path)
+                .map_err(|e| ConfigError::GeneralError(e.to_string()))?
+                .collect::<Result<_, _>>()
+                .map_err(|e| ConfigError::GeneralError(e.to_string()))?;
 
-    // Log the .env file path
-    info!("Loaded env file from {}", path.display());
+            info!("Loaded env file from {}", path.display());
+            Some(map)
+        }
+        // Read directly from the process environment
+        None => None,
+    };
 
     // Construct the config and return it
     Ok(AppConfig {
@@ -69,11 +77,20 @@ pub fn load_from(path: &Path) -> Result<AppConfig, ConfigError> {
     })
 }
 
-/// Get a required env var, returning an error if not present or parseable.
-fn required<T: FromStr>(vars: &HashMap<String, String>, name: &str) -> Result<T, ConfigError> {
-    vars.get(name)
-        .ok_or_else(|| ConfigError::EnvVarNotSet(name.to_string()))?
-        .parse::<T>()
+/// Get a required value from the vars map, or from the process environment if the map is `None`.
+fn required<T: FromStr>(
+    vars: &Option<HashMap<String, String>>,
+    name: &str,
+) -> Result<T, ConfigError> {
+    let raw = match vars {
+        Some(map) => map
+            .get(name)
+            .ok_or_else(|| ConfigError::EnvVarNotSet(name.to_string()))?
+            .clone(),
+        None => env::var(name).map_err(|_| ConfigError::EnvVarNotSet(name.to_string()))?,
+    };
+
+    raw.parse::<T>()
         .map_err(|_| ConfigError::EnvVarParseError(name.to_string()))
 }
 
@@ -93,7 +110,7 @@ mod tests {
         )
         .unwrap();
 
-        let cfg = load_from(&env_path).expect("should load");
+        let cfg = load_from(Some(env_path.as_path())).expect("should load");
         assert_eq!(cfg.tcp.host, "127.0.0.1");
         assert_eq!(cfg.tcp.port, 8080);
         assert_eq!(cfg.tcp.max_connections, 1024);
@@ -105,7 +122,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let env_path = dir.path().join("does_not_exist.env");
 
-        match load_from(&env_path) {
+        match load_from(Some(env_path.as_path())) {
             Err(ConfigError::GeneralError(_)) => {}
             other => panic!("expected GeneralError, got {:?}", other),
         }
@@ -119,7 +136,7 @@ mod tests {
         // PULSE_TCP_HOST intentionally omitted
         fs::write(&env_path, "PULSE_TCP_PORT=8080\n").unwrap();
 
-        match load_from(&env_path) {
+        match load_from(Some(env_path.as_path())) {
             Err(ConfigError::EnvVarNotSet(name)) => assert_eq!(name, "PULSE_TCP_HOST"),
             other => panic!("expected EnvVarNotSet for PULSE_TCP_HOST, got {:?}", other),
         }
@@ -135,7 +152,7 @@ mod tests {
         )
         .unwrap();
 
-        match load_from(&env_path) {
+        match load_from(Some(env_path.as_path())) {
             Err(ConfigError::EnvVarParseError(name)) => assert_eq!(name, "PULSE_TCP_PORT"),
             other => panic!(
                 "expected EnvVarParseError for PULSE_TCP_PORT, got {:?}",
@@ -156,7 +173,7 @@ mod tests {
         )
         .unwrap();
 
-        match load_from(&env_path) {
+        match load_from(Some(env_path.as_path())) {
             Err(ConfigError::EnvVarParseError(name)) => assert_eq!(name, "PULSE_TCP_PORT"),
             other => panic!(
                 "expected EnvVarParseError for PULSE_TCP_PORT, got {:?}",
